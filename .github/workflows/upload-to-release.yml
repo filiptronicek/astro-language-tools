@@ -1,0 +1,48 @@
+on:
+  release:
+    types: [published]
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
+
+      - name: Set up Node.js 14.x
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14.x
+          
+      - name: Install dependencies
+        run: yarn --frozen-lockfile --ignore-engines
+        env:
+          CI: true
+      - uses: actions/github-script@v5
+        id: upload-url
+        with:
+          script: |
+            const response = await octokit.request('GET /repos/{owner}/{repo}/releases/latest', {
+              owner: 'withastro',
+              repo: 'astro-language-tools'
+            });
+            return response.upload_url;
+          result-encoding: string
+      - name: Setup package path
+        id: setup
+        run: echo "::set-output name=packageName::$(node -e "console.log(require('./package.json').name + '-' + require('./package.json').version + '.vsix')")"
+
+      - name: Package
+        run: npx vsce package --out ${{ steps.setup.outputs.packageName }}
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.upload-url.outputs.result }}
+          asset_path: ./${{ steps.setup.outputs.packageName }}
+          asset_name: ${{ steps.setup.outputs.packageName }}
+          asset_content_type: application/zip
