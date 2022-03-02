@@ -55,23 +55,33 @@ async function createLanguageService(tsconfigPath: string, workspaceRoot: string
     },
   };
 
-  let configJson = (tsconfigPath && ts.readConfigFile(tsconfigPath, ts.sys.readFile).config) || getDefaultJsConfig();
-  if (!configJson.extends) {
-    configJson = Object.assign(
-      {
-        exclude: getDefaultExclude(),
-      },
-      configJson
-    );
+  let configJson = (tsconfigPath && ts.readConfigFile(tsconfigPath, ts.sys.readFile).config) || {};
+
+  // If our user has types in their config but it doesn't include the types for ImportMeta, let's add them for them
+  if (
+    configJson.compilerOptions?.types &&
+    !configJson.compilerOptions?.types.includes("vite/client")
+  ) {
+    configJson.compilerOptions.types.push("vite/client");
   }
 
-  // Delete include so that astro files don't get excluded.
+  configJson.compilerOptions = Object.assign(
+    getDefaultCompilerOptions(),
+    configJson.compilerOptions
+  );
+  // If the user supplied exclude, let's use theirs
+  configJson.exclude ?? (configJson.exclude = getDefaultExclude());
+
+  // Delete include so that .astro files don't get mistakenly excluded by the user
   delete configJson.include;
 
+  // Everything here will always, unconditionally, be in the resulting config, not the opposite, tricky
   const existingCompilerOptions: ts.CompilerOptions = {
+    // Setting strict to true for .astro files leads to a lot of unrelated errors (see language-tools#91) so we force it off for .astro files
+    strict: false,
     jsx: ts.JsxEmit.Preserve,
     module: ts.ModuleKind.ESNext,
-    target: ts.ScriptTarget.ESNext
+    target: ts.ScriptTarget.ESNext,
   };
 
   const project = ts.parseJsonConfigFileContent(configJson, parseConfigHost, workspaceRoot, existingCompilerOptions, basename(tsconfigPath), undefined, [
@@ -174,22 +184,14 @@ async function createLanguageService(tsconfigPath: string, workspaceRoot: string
   }
 }
 
-/**
- * This should only be used when there's no jsconfig/tsconfig at all
- */
-function getDefaultJsConfig(): {
-  compilerOptions: ts.CompilerOptions;
-  include: string[];
-} {
-  let compilerOptions = {
-    maxNodeModuleJsDepth: 2,
-    allowSyntheticDefaultImports: true,
-    allowJs: true
-  };
-  return {
-    compilerOptions,
-    include: ['src'],
-  };
+function getDefaultCompilerOptions(): ts.CompilerOptions {
+   return {
+     maxNodeModuleJsDepth: 2,
+     allowSyntheticDefaultImports: true,
+     allowJs: true,
+     // By providing vite/client here, our users get proper typing on import.meta in .astro files
+     types: ["vite/client"],
+   };
 }
 
 function getDefaultExclude() {

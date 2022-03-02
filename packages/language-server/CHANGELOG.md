@@ -1,5 +1,36 @@
 # @astrojs/language-server
 
+## 0.8.9
+
+### Patch Changes
+
+- d0485a2: Only apply content transformations for TSX generation in relevant places
+
+## 0.8.8
+
+### Patch Changes
+
+- 526d5c7: Bring back loading the user js/tsconfig.json, notably, this allow us to support aliases
+
+## 0.8.7
+
+### Patch Changes
+
+- 897ab35: Provide vite client types to Astro files
+
+## 0.8.6
+
+### Patch Changes
+
+- 97559b6: Removes errors with import.meta.hot
+- 4c93d24: Prevent reading tsconfig in .astro files
+
+## 0.8.5
+
+### Patch Changes
+
+- f1f3091: Fix commenting, namespaced elements, and Fragment typings
+
 ## 0.8.4
 
 ### Patch Changes
